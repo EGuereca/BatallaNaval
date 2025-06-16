@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GameController;
+use App\Http\Controllers\AuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,15 +16,24 @@ use App\Http\Controllers\GameController;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-// Rutas para GameController
+// Rutas públicas de autenticación
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+
+// Rutas protegidas que requieren autenticación
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/games', [GameController::class, 'createGame']);
-    Route::post('/games/{gameId}/join', [GameController::class, 'joinGame']);
-    Route::get('/games', [GameController::class, 'listGames']);
-    Route::get('/games/{gameId}', [GameController::class, 'showGame']);
-    Route::post('/games/{gameId}/move', [GameController::class, 'makeMove']);
-    Route::get('/games/{gameId}/opponent-board', [GameController::class, 'getOpponentBoard']);
+    // Ruta para obtener información del usuario
+    Route::get('/user', function (Request $request) {
+        return response()->json($request->user());
+    });
+
+    // Rutas del juego
+    Route::prefix('games')->group(function () {
+        Route::post('/', [GameController::class, 'createGame']);
+        Route::post('/{gameId}/join', [GameController::class, 'joinGame']);
+        Route::get('/', [GameController::class, 'listGames']);
+        Route::get('/{gameId}', [GameController::class, 'showGame']);
+        Route::post('/{gameId}/move', [GameController::class, 'makeMove']);
+        Route::get('/{gameId}/opponent-board', [GameController::class, 'getOpponentBoard']);
+    });
 });

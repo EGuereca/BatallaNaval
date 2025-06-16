@@ -8,12 +8,14 @@ use App\Models\Game;
 use App\Models\Board;
 use App\Models\Move;
 use Illuminate\Support\Facades\Auth;
+use PhpParser\Node\NullableType;
 
 class GameController extends Controller
 {
     public function createGame(Request $request){
         $game = Game::create([
             'player1_id' => Auth::id(),
+            'player2_id'=>null,
             'status' => 'waiting',
             'current_turn_id' => Auth::id(),
         ]);
