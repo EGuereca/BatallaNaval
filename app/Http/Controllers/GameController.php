@@ -72,6 +72,7 @@ class GameController extends Controller
         return response()->json(['message' => 'Joined game successfully', 'game_id' => $game->id, 'grid' => $filledGrid], 200);
     }
     public function listGames(Request $request){
+<<<<<<< HEAD
         $games = Game::where('status', 'waiting')->get();
         $gamesWithNames = $games->map(function ($game) {
             $player1 = User::findOrFail($game->player1_id);
@@ -97,6 +98,24 @@ class GameController extends Controller
         $adjectives = ['Brave', 'Clever', 'Swift', 'Mighty', 'Fierce'];
         $nouns = ['Warrior', 'Hunter', 'Guardian', 'Champion', 'Defender'];
         return $adjectives[array_rand($adjectives)] . ' ' . $nouns[array_rand($nouns)];
+=======
+        $games = Game::with(['player1', 'player2', 'winner'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($game) {
+                return [
+                    'id' => $game->id,
+                    'player1_name' => $game->player1->name,
+                    'player2_name' => $game->player2 ? $game->player2->name : null,
+                    'winner_name' => $game->winner ? $game->winner->name : null,
+                    'status' => $game->status,
+                    'created_at' => $game->created_at,
+                    'winner_id' => $game->winner_id
+                ];
+            });
+
+        return response()->json($games);
+>>>>>>> 9f52b9c (animaciones y dashboard y vayase alv)
     }
     public function showGame(Request $request, $gameId){
         $game = Game::with('board')->findOrFail($gameId);
@@ -194,5 +213,17 @@ class GameController extends Controller
         }
 
         return response()->json(['grid' => $visibleGrid]);
+    }
+
+    public function getPlayerBoard($gameId, $playerNumber)
+    {
+        $game = Game::findOrFail($gameId);
+        $board = $game->boards()->where('player_number', $playerNumber)->first();
+        
+        if (!$board) {
+            return response()->json(['error' => 'Board not found'], 404);
+        }
+
+        return response()->json(['grid' => $board->grid]);
     }
 }
