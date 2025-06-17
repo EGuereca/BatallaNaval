@@ -195,4 +195,16 @@ class GameController extends Controller
 
         return response()->json(['grid' => $visibleGrid]);
     }
+
+    public function getPlayerBoard($gameId, $playerNumber)
+    {
+        $game = Game::findOrFail($gameId);
+        $board = $game->boards()->where('player_number', $playerNumber)->first();
+        
+        if (!$board) {
+            return response()->json(['error' => 'Board not found'], 404);
+        }
+
+        return response()->json(['grid' => $board->grid]);
+    }
 }

@@ -35,5 +35,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{gameId}', [GameController::class, 'showGame']);
         Route::post('/{gameId}/move', [GameController::class, 'makeMove']);
         Route::get('/{gameId}/opponent-board', [GameController::class, 'getOpponentBoard']);
+        Route::get('/{gameId}/board/{playerNumber}', [GameController::class, 'getPlayerBoard']);
     });
 });
