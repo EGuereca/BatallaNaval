@@ -1,215 +1,502 @@
-<script setup>
-import { Head, Link } from '@inertiajs/vue3';
-import CyberpunkBackground from '@/Components/CyberpunkBackground.vue';
-import SystemHeader from '@/Components/SystemHeader.vue';
-import CyberpunkButton from '@/Components/CyberpunkButton.vue';
-
-defineProps({
-    canLogin: Boolean,
-    canRegister: Boolean,
-    laravelVersion: String,
-    phpVersion: String,
-});
-</script>
-
 <template>
-    <Head title="Welcome" />
-
-    <CyberpunkBackground>
-        <div class="welcome-content">
-            <SystemHeader />
-
-            <div class="auth-links" v-if="canLogin">
-                <CyberpunkButton
-                v-if="$page.props.auth.user"
-                    :to="route('dashboard')"
-                    icon="🎮"
-            >
-                    DASHBOARD
-                </CyberpunkButton>
-
-            <template v-else>
-                <Link
-                    :href="route('login')"
-                        class="cyberpunk-button"
-                >
-                        <span class="button-icon">🔑</span>
-                        INICIAR SESIÓN
-                    </Link>
-
-                <Link
-                    v-if="canRegister"
-                    :href="route('register')"
-                        class="cyberpunk-button"
-                >
-                        <span class="button-icon">⚡</span>
-                        REGISTRARSE
-                    </Link>
-            </template>
-            </div>
-
-            <div class="game-info">
-                <div class="info-card">
-                    <div class="card-icon">🎯</div>
-                    <h2>OBJETIVO</h2>
-                    <p>Hunde todos los barcos enemigos antes de que hundan los tuyos. Cada barco ocupa diferentes espacios en el tablero.</p>
-                            </div>
-
-                <div class="info-card">
-                    <div class="card-icon">⚓</div>
-                    <h2>FLOTA</h2>
-                    <p>Comanda una flota de 5 barcos: Portaaviones (5), Acorazado (4), Crucero (3), Submarino (3) y Destructor (2).</p>
-                        </div>
-
-                <div class="info-card">
-                    <div class="card-icon">🎲</div>
-                    <h2>JUEGO</h2>
-                    <p>Turnos alternados. Selecciona coordenadas para atacar. ¡Acierta y destruye la flota enemiga!</p>
-                            </div>
-
-                <div class="info-card">
-                    <div class="card-icon">🏆</div>
-                    <h2>VICTORIA</h2>
-                    <p>El primer jugador en hundir todos los barcos enemigos gana la batalla. ¡Demuestra tu estrategia!</p>
-                </div>
-            </div>
-
-            <div class="system-info">
-                <div class="version-info">
-                    <span class="info-label">SISTEMA</span>
-                    <span class="info-value">v{{ laravelVersion }}</span>
-                </div>
-                <div class="version-info">
-                    <span class="info-label">PHP</span>
-                    <span class="info-value">v{{ phpVersion }}</span>
-                </div>
-            </div>
+    <div class="dashboard-container">
+      <!-- Header -->
+      <div class="dashboard-header">
+        <h1 class="title">COMANDO NAVAL - DASHBOARD</h1>
+        <div class="status-bar">
+          <span class="status-item">STATUS: OPERATIVO</span>
+          <span class="status-item">{{ currentTime }}</span>
         </div>
-    </CyberpunkBackground>
-</template>
-
-<style scoped>
-.welcome-content {
-    position: relative;
-    z-index: 1;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
-.auth-links {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-bottom: 3rem;
-}
-
-.cyberpunk-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: rgba(0, 255, 65, 0.1);
-    border: 1px solid #00ff41;
-    border-radius: 5px;
-    color: #00ff41;
-    text-decoration: none;
-    font-weight: bold;
+      </div>
+  
+      <!-- Main Content -->
+      <div class="dashboard-content">
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card victories">
+            <div class="stat-header">
+              <span class="stat-icon">🏆</span>
+              <span class="stat-label">VICTORIAS</span>
+            </div>
+            <div class="stat-value">{{ gameStats.wins }}</div>
+            <div class="stat-percentage">{{ winPercentage }}%</div>
+          </div>
+  
+          <div class="stat-card defeats">
+            <div class="stat-header">
+              <span class="stat-icon">💥</span>
+              <span class="stat-label">DERROTAS</span>
+            </div>
+            <div class="stat-value">{{ gameStats.losses }}</div>
+            <div class="stat-percentage">{{ lossPercentage }}%</div>
+          </div>
+  
+          <div class="stat-card total">
+            <div class="stat-header">
+              <span class="stat-icon">🎯</span>
+              <span class="stat-label">TOTAL BATALLAS</span>
+            </div>
+            <div class="stat-value">{{ totalGames }}</div>
+            <div class="stat-percentage">100%</div>
+          </div>
+        </div>
+  
+        <!-- Games History -->
+        <div class="games-history">
+          <div class="section-header">
+            <h2>HISTORIAL DE BATALLAS</h2>
+          </div>
+          
+          <div class="games-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>JUGADOR 1</th>
+                  <th>JUGADOR 2</th>
+                  <th>ESTADO</th>
+                  <th>GANADOR</th>
+                  <th>FECHA</th>
+                  <th>ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="game in games" :key="game.id">
+                  <td>{{ game.id }}</td>
+                  <td>{{ game.player1_name }}</td>
+                  <td>{{ game.player2_name || 'Esperando...' }}</td>
+                  <td>
+                    <span :class="['status-badge', game.status]">
+                      {{ getStatusText(game.status) }}
+                    </span>
+                  </td>
+                  <td>{{ game.winner_name || '-' }}</td>
+                  <td>{{ formatDate(game.created_at) }}</td>
+                  <td>
+                    <button 
+                      v-if="game.status === 'finished'"
+                      @click="showGameBoards(game.id)"
+                      class="action-btn"
+                    >
+                      Ver Tableros
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+  
+        <!-- Game Boards Modal -->
+        <div v-if="showModal" class="modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>Tableros de la Partida #{{ selectedGameId }}</h3>
+              <button @click="closeModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="boards-container">
+                <div class="board-section">
+                  <h4>Tablero Jugador 1</h4>
+                  <div class="board-grid">
+                    <div v-for="(row, i) in player1Board" :key="i" class="board-row">
+                      <div 
+                        v-for="(cell, j) in row" 
+                        :key="j"
+                        :class="['board-cell', getCellClass(cell)]"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="board-section">
+                  <h4>Tablero Jugador 2</h4>
+                  <div class="board-grid">
+                    <div v-for="(row, i) in player2Board" :key="i" class="board-row">
+                      <div 
+                        v-for="(cell, j) in row" 
+                        :key="j"
+                        :class="['board-cell', getCellClass(cell)]"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+  
+  <script>
+  import axios from 'axios';
+  
+  export default {
+    name: 'BattleshipDashboard',
+    data() {
+      return {
+        currentTime: '',
+        gameStats: {
+          wins: 0,
+          losses: 0
+        },
+        games: [],
+        showModal: false,
+        selectedGameId: null,
+        player1Board: [],
+        player2Board: [],
+        timeInterval: null
+      }
+    },
+    computed: {
+      totalGames() {
+        return this.gameStats.wins + this.gameStats.losses;
+      },
+      winPercentage() {
+        if (this.totalGames === 0) return 0;
+        return Math.round((this.gameStats.wins / this.totalGames) * 100);
+      },
+      lossPercentage() {
+        if (this.totalGames === 0) return 0;
+        return Math.round((this.gameStats.losses / this.totalGames) * 100);
+      }
+    },
+    methods: {
+      updateTime() {
+        const now = new Date();
+        this.currentTime = now.toLocaleTimeString();
+      },
+      formatDate(date) {
+        return new Date(date).toLocaleString();
+      },
+      getStatusText(status) {
+        const statusMap = {
+          'waiting': 'ESPERANDO',
+          'playing': 'EN JUEGO',
+          'finished': 'FINALIZADO'
+        };
+        return statusMap[status] || status;
+      },
+      getCellClass(cell) {
+        switch(cell) {
+          case 1: return 'ship';
+          case 2: return 'hit';
+          case 3: return 'miss';
+          default: return 'empty';
+        }
+      },
+      async fetchGames() {
+        try {
+          const response = await axios.get('/api/games');
+          this.games = response.data;
+          this.calculateStats();
+        } catch (error) {
+          console.error('Error fetching games:', error);
+        }
+      },
+      calculateStats() {
+        const userId = this.$store.state.user.id; // Asumiendo que tienes el ID del usuario en el store
+        this.gameStats.wins = this.games.filter(game => 
+          game.status === 'finished' && game.winner_id === userId
+        ).length;
+        this.gameStats.losses = this.games.filter(game => 
+          game.status === 'finished' && game.winner_id !== userId && game.winner_id !== null
+        ).length;
+      },
+      async showGameBoards(gameId) {
+        try {
+          const response = await axios.get(`/api/games/${gameId}`);
+          const game = response.data;
+          
+          // Obtener los tableros de ambos jugadores
+          const board1Response = await axios.get(`/api/games/${gameId}/board/1`);
+          const board2Response = await axios.get(`/api/games/${gameId}/board/2`);
+          
+          this.player1Board = JSON.parse(board1Response.data.grid);
+          this.player2Board = JSON.parse(board2Response.data.grid);
+          this.selectedGameId = gameId;
+          this.showModal = true;
+        } catch (error) {
+          console.error('Error fetching game boards:', error);
+        }
+      },
+      closeModal() {
+        this.showModal = false;
+        this.selectedGameId = null;
+        this.player1Board = [];
+        this.player2Board = [];
+      }
+    },
+    mounted() {
+      this.updateTime();
+      this.timeInterval = setInterval(this.updateTime, 1000);
+      this.fetchGames();
+    },
+    beforeUnmount() {
+      if (this.timeInterval) {
+        clearInterval(this.timeInterval);
+      }
+    }
+  }
+  </script>
+  
+  <style scoped>
+  .dashboard-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+    color: #00ff88;
     font-family: 'Courier New', monospace;
-    transition: all 0.3s ease;
-}
-
-.cyberpunk-button:hover {
-    background: rgba(0, 255, 65, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
-}
-
-.button-icon {
-    font-size: 1.2rem;
-}
-
-.game-info {
+    padding: 20px;
+  }
+  
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: rgba(0, 255, 65, 0.1);
+    border: 2px solid #00ff41;
+    border-radius: 10px;
+  }
+  
+  .title {
+    font-size: 2rem;
+    margin: 0;
+    text-shadow: 0 0 10px #00ff41;
+  }
+  
+  .status-bar {
+    display: flex;
+    gap: 20px;
+  }
+  
+  .status-item {
+    font-size: 1.1rem;
+  }
+  
+  .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
-    margin-bottom: 3rem;
-}
-
-.info-card {
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .stat-card {
     background: rgba(0, 0, 0, 0.8);
     border: 1px solid #00ff41;
     border-radius: 10px;
-    padding: 1.5rem;
+    padding: 20px;
     text-align: center;
-    transition: all 0.3s ease;
-}
-
-.info-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
-}
-
-.card-icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-}
-
-.info-card h2 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-    color: #00ff41;
-    text-shadow: 0 0 10px #00ff41;
-}
-
-.info-card p {
-    font-size: 0.9rem;
-    line-height: 1.5;
-    opacity: 0.8;
-}
-
-.system-info {
-    display: flex;
-    justify-content: center;
-    gap: 2rem;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.5);
-    border-top: 1px solid rgba(0, 255, 65, 0.2);
-}
-
-.version-info {
+  }
+  
+  .stat-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-}
-
-.info-label {
-    font-size: 0.8rem;
-    opacity: 0.6;
-}
-
-.info-value {
-    font-size: 0.8rem;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  
+  .stat-icon {
+    font-size: 1.5rem;
+  }
+  
+  .stat-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 10px 0;
+  }
+  
+  .stat-percentage {
+    font-size: 1.2rem;
     color: #00ff41;
-}
-
-@media (max-width: 768px) {
-    .welcome-content {
-        padding: 1rem;
+  }
+  
+  .games-history {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid #00ff41;
+    border-radius: 10px;
+    padding: 20px;
+  }
+  
+  .section-header {
+    margin-bottom: 20px;
+  }
+  
+  .section-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #00ff41;
+  }
+  
+  .games-table {
+    width: 100%;
+    overflow-x: auto;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+  
+  th, td {
+    padding: 12px;
+    border-bottom: 1px solid #333;
+  }
+  
+  th {
+    background: rgba(0, 255, 65, 0.1);
+    font-weight: bold;
+  }
+  
+  .status-badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.9rem;
+  }
+  
+  .status-badge.waiting {
+    background: #ffd700;
+    color: #000;
+  }
+  
+  .status-badge.playing {
+    background: #00ff41;
+    color: #000;
+  }
+  
+  .status-badge.finished {
+    background: #ff4444;
+    color: #fff;
+  }
+  
+  .action-btn {
+    background: #00ff41;
+    color: #000;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+  }
+  
+  .action-btn:hover {
+    background: #00cc33;
+  }
+  
+  /* Modal Styles */
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .modal-content {
+    background: #1a1a2e;
+    border: 2px solid #00ff41;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 1200px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #00ff41;
+  }
+  
+  .modal-header h3 {
+    margin: 0;
+    color: #00ff41;
+  }
+  
+  .close-btn {
+    background: none;
+    border: none;
+    color: #00ff41;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .boards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .board-section {
+    text-align: center;
+  }
+  
+  .board-section h4 {
+    margin-bottom: 15px;
+    color: #00ff41;
+  }
+  
+  .board-grid {
+    display: inline-grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    background: #333;
+    padding: 2px;
+    border: 1px solid #00ff41;
+  }
+  
+  .board-row {
+    display: contents;
+  }
+  
+  .board-cell {
+    width: 30px;
+    height: 30px;
+    background: #1a1a2e;
+    border: 1px solid #333;
+  }
+  
+  .board-cell.ship {
+    background: #00ff41;
+  }
+  
+  .board-cell.hit {
+    background: #ff4444;
+  }
+  
+  .board-cell.miss {
+    background: #4444ff;
+  }
+  
+  @media (max-width: 768px) {
+    .dashboard-header {
+      flex-direction: column;
+      gap: 15px;
+      text-align: center;
     }
-
-    .auth-links {
-        flex-direction: column;
+    
+    .stats-grid {
+      grid-template-columns: 1fr;
     }
-
-    .game-info {
-        grid-template-columns: 1fr;
+    
+    .board-cell {
+      width: 25px;
+      height: 25px;
     }
-
-    .system-info {
-        flex-direction: column;
-        align-items: center;
-        gap: 1rem;
-    }
-}
-</style>
+  }
+  </style>
