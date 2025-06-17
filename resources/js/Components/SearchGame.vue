@@ -52,8 +52,6 @@
             <div class="game-title">
               <span class="game-name">{{ game.name }}</span>
               <div class="game-badges">
-                <span v-if="game.isPrivate" class="badge private">🔒 CLASSIFIED</span>
-                <span v-if="game.isRanked" class="badge ranked">⭐ RANKED</span>
                 <span v-if="game.players >= game.maxPlayers" class="badge full">❌ FULL</span>
               </div>
             </div>
@@ -66,22 +64,19 @@
             <div class="info-row">
               <div class="info-item">
                 <span class="info-label">COMMANDER:</span>
-                <span class="info-value commander-name">{{ game.host }}</span>
+                <span class="info-value commander-name">{{ game.player1 }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">PLAYERS:</span>
-                <span class="info-value">{{ game.players }}/{{ game.maxPlayers }}</span>
+                <span class="info-value" v-if="game.player2 == null">1/2</span>
+                <span class="info-value" v-else>2/2</span>
               </div>
             </div>
             
             <div class="info-row">
               <div class="info-item">
                 <span class="info-label">MAP SIZE:</span>
-                <span class="info-value">{{ game.mapSize }}x{{ game.mapSize }}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">PING:</span>
-                <span class="info-value ping" :class="getPingClass(game.ping)">{{ game.ping }}ms</span>
+                <span class="info-value">{{ 8 }}x{{ 8 }}</span>
               </div>
             </div>
             
@@ -90,16 +85,12 @@
                 <span class="info-label">CREATED:</span>
                 <span class="info-value">{{ formatTime(game.createdAt) }}</span>
               </div>
-              <div class="info-item">
-                <span class="info-label">REGION:</span>
-                <span class="info-value">{{ game.region }}</span>
-              </div>
             </div>
           </div>
 
           <div class="game-footer">
-            <div class="join-button" :class="{ disabled: game.players >= game.maxPlayers }">
-              <span v-if="game.players >= game.maxPlayers">BATTLEFIELD FULL</span>
+            <div class="join-button" :class="{ disabled: game.player2 != null }">
+              <span v-if="game.player2 != null">BATTLEFIELD FULL</span>
               <span v-else-if="game.isPrivate">ENTER ACCESS CODE</span>
               <span v-else>JOIN BATTLE</span>
             </div>
@@ -125,107 +116,38 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 
 const playerName = ref('ALPHA_7')
 const isLoading = ref(false)
 const searchFilter = ref('')
 
-const games = ref([
-  {
-    id: 1,
-    name: "OPERATION STEEL STORM",
-    host: "CAPTAIN_NOVA",
-    players: 1,
-    maxPlayers: 2,
-    status: "WAITING",
-    isPrivate: false,
-    isRanked: true,
-    mapSize: 8,
-    ping: 24,
-    region: "NA-WEST",
-    createdAt: new Date(Date.now() - 120000) // 2 minutes ago
-  },
-  {
-    id: 2,
-    name: "CLASSIFIED MISSION BRAVO",
-    host: "SHADOW_RECON",
-    players: 1,
-    maxPlayers: 2,
-    status: "WAITING",
-    isPrivate: true,
-    isRanked: false,
-    mapSize: 10,
-    ping: 45,
-    region: "EU-CENTRAL",
-    createdAt: new Date(Date.now() - 300000) // 5 minutes ago
-  },
-  {
-    id: 3,
-    name: "PACIFIC THEATER",
-    host: "ADMIRAL_STORM",
-    players: 2,
-    maxPlayers: 2,
-    status: "IN_PROGRESS",
-    isPrivate: false,
-    isRanked: true,
-    mapSize: 8,
-    ping: 12,
-    region: "ASIA-PACIFIC",
-    createdAt: new Date(Date.now() - 600000) // 10 minutes ago
-  },
-  {
-    id: 4,
-    name: "LIGHTNING STRIKE",
-    host: "THUNDER_BOLT",
-    players: 1,
-    maxPlayers: 2,
-    status: "WAITING",
-    isPrivate: false,
-    isRanked: false,
-    mapSize: 8,
-    ping: 89,
-    region: "SA-BRAZIL",
-    createdAt: new Date(Date.now() - 180000) // 3 minutes ago
-  },
-  {
-    id: 5,
-    name: "ARCTIC WARFARE",
-    host: "ICE_COMMANDER",
-    players: 1,
-    maxPlayers: 2,
-    status: "WAITING",
-    isPrivate: false,
-    isRanked: true,
-    mapSize: 12,
-    ping: 156,
-    region: "EU-NORTH",
-    createdAt: new Date(Date.now() - 840000) // 14 minutes ago
-  }
-])
+const games = ref([])
 
 const filteredGames = computed(() => {
   if (!searchFilter.value) return games.value
   
   return games.value.filter(game => 
     game.name.toLowerCase().includes(searchFilter.value.toLowerCase()) ||
-    game.host.toLowerCase().includes(searchFilter.value.toLowerCase())
+    game.player1.toLowerCase().includes(searchFilter.value.toLowerCase())
   )
 })
 
 const refreshGames = async () => {
   isLoading.value = true
-  
-  // Simular llamada a API
-  await new Promise(resolve => setTimeout(resolve, 1500))
-  
-  // Actualizar algunos datos para simular cambios
-  games.value.forEach(game => {
-    game.ping = Math.floor(Math.random() * 150) + 10
-    if (Math.random() > 0.8) {
-      game.players = Math.min(game.players + 1, game.maxPlayers)
-    }
-  })
-  
+  try {
+    const response = await axios.get('/api/games')
+    games.value = response.data.games.map(game => ({
+      id: game.id,
+      name: game.name,
+      player1: game.player1,
+      player2: game.player2,
+      status: game.status,
+      createdAt: new Date(game.created_at),
+    }))
+  } catch (e) {
+    games.value = []
+  }
   isLoading.value = false
 }
 
@@ -482,16 +404,6 @@ onMounted(() => {
   border-radius: 3px;
   font-size: 0.75rem;
   font-weight: bold;
-}
-
-.badge.private {
-  background: #ff9500;
-  color: #000;
-}
-
-.badge.ranked {
-  background: #ffd700;
-  color: #000;
 }
 
 .badge.full {

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Game;
 use App\Models\Board;
 use App\Models\Move;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use PhpParser\Node\NullableType;
 
@@ -72,7 +73,30 @@ class GameController extends Controller
     }
     public function listGames(Request $request){
         $games = Game::where('status', 'waiting')->get();
-        return response()->json($games, 200);
+        $gamesWithNames = $games->map(function ($game) {
+            $player1 = User::findOrFail($game->player1_id);
+            $player2 = User::findOrFail($game->player2_id);
+            if ($game->player2_id == $game->player1_id) {
+                $player2 = null; // Player 2 is not set yet
+            }
+            return [
+                'id' => $game->id,
+                'name' => $game->name ?: $this->randomGameName(), // Use a random name if not set
+                'player1' => $player1 ? $player1->name : 'Player 1',
+                'player2' => $player2 ? $player2->name : null,
+                'status' => $game->status,
+                'created_at' => $game->created_at,
+            ];
+        });
+        if ($gamesWithNames->isEmpty()) {
+            return response()->json(['message' => 'No available games'], 404);
+        }
+        return response()->json(['games' => $gamesWithNames, 'count' => $gamesWithNames->count(),], 200);
+    }
+    private function randomGameName() {
+        $adjectives = ['Brave', 'Clever', 'Swift', 'Mighty', 'Fierce'];
+        $nouns = ['Warrior', 'Hunter', 'Guardian', 'Champion', 'Defender'];
+        return $adjectives[array_rand($adjectives)] . ' ' . $nouns[array_rand($nouns)];
     }
     public function showGame(Request $request, $gameId){
         $game = Game::with('board')->findOrFail($gameId);
