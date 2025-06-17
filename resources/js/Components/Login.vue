@@ -172,6 +172,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
+import axios from 'axios'
 
 // Usa useForm de Inertia
 const form = useForm({
@@ -228,7 +229,7 @@ const togglePassword = () => {
 }
 
 // Nuevo handleLogin usando Inertia
-const handleLogin = () => {
+const handleLogin = async () => {
   validateEmail()
   validatePassword()
   if (!isFormValid.value) return
@@ -236,20 +237,33 @@ const handleLogin = () => {
   isLoading.value = true
   loginError.value = ''
 
+  // 1. Login con Inertia (sesión/cookie)
   form.post(route('login'), {
+    async onSuccess() {
+      // 2. Login con API para obtener el token
+      try {
+        const response = await axios.post('/api/login', {
+          email: form.email,
+          password: form.password
+        })
+        localStorage.setItem('token', response.data.access_token)
+        // Redirige o haz lo que necesites
+        window.location.href = '/dashboard'
+      } catch (error) {
+        loginError.value = 'Sesión iniciada, pero no se pudo obtener el token.'
+      }
+    },
     onFinish: () => {
       isLoading.value = false
       form.reset('password')
     },
     onError: (errors) => {
-      // Muestra error general si existe
       if (errors.email || errors.password) {
         loginError.value = 'Invalid Commander ID or Access Code. Please verify your credentials and try again.'
       }
     }
   })
 }
-
 const forgotPassword = () => {
   // Redirige a la ruta de recuperación de contraseña de Inertia
   window.location.href = route('password.request')

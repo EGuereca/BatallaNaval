@@ -38,3 +38,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{gameId}/board/{playerNumber}', [GameController::class, 'getPlayerBoard']);
     });
 });
+// 1231, 

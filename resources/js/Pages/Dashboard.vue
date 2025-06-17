@@ -1,582 +1,599 @@
 <template>
-    <div class="dashboard-container">
-      <!-- Header -->
-      <div class="dashboard-header">
-        <h1 class="title">COMANDO NAVAL - DASHBOARD</h1>
-        <div class="header-controls">
-          <div class="status-bar">
-            <span class="status-item">STATUS: OPERATIVO</span>
-            <span class="status-item">{{ currentTime }}</span>
-          </div>
-          <div class="user-controls">
-            <Link :href="route('profile.edit')" class="control-btn profile-btn">
-              <span class="btn-icon">👤</span>
-              PERFIL
-            </Link>
-            <form @submit.prevent="logout" class="inline">
-              <button type="submit" class="control-btn logout-btn">
-                <span class="btn-icon">🚪</span>
-                CERRAR SESIÓN
-              </button>
-            </form>
-          </div>
+  <div class="lobby-container">
+    <!-- Header -->
+    <div class="lobby-header">
+      <h1 class="lobby-title">BATTLE COMMAND FINDER</h1>
+      <div class="player-status">
+        <div class="status-indicator active"></div>
+        <span class="player-name">COMMANDER_{{ playerName }}</span>
+      </div>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="controls-panel">
+      <button @click="refreshGames" class="action-btn refresh-btn" :disabled="isLoading">
+        <span class="btn-icon">🔄</span>
+        {{ isLoading ? 'SCANNING...' : 'REFRESH GAMES' }}
+      </button>
+      
+      <button @click="createGame" class="action-btn create-btn">
+        <span class="btn-icon">⚡</span>
+        CREATE NEW BATTLE
+      </button>
+      
+      <div class="search-filter">
+        <input 
+          v-model="searchFilter" 
+          type="text" 
+          placeholder="FILTER BY COMMANDER NAME..."
+          class="search-input"
+        >
+      </div>
+    </div>
+
+    <!-- Games List -->
+    <div class="games-section">
+      <div class="section-header">
+        <h2>ACTIVE BATTLEFIELDS</h2>
+        <div class="games-counter">
+          <span class="counter-text">{{ filteredGames.length }} BATTLES AVAILABLE</span>
         </div>
       </div>
-  
-      <!-- Main Content -->
-      <div class="dashboard-content">
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-          <div class="stat-card victories">
-            <div class="stat-header">
-              <span class="stat-icon">🏆</span>
-              <span class="stat-label">VICTORIAS</span>
+
+      <div class="games-list" v-if="filteredGames.length > 0">
+        <div 
+          v-for="game in filteredGames" 
+          :key="game.id"
+          class="game-card"
+          :class="{ 'private-game': game.isPrivate, 'full-game': game.players >= game.maxPlayers }"
+          @click="joinGame(game)"
+        >
+          <div class="game-header">
+            <div class="game-title">
+              <span class="game-name">{{ game.name }}</span>
+              <div class="game-badges">
+                <span v-if="game.players >= game.maxPlayers" class="badge full">❌ FULL</span>
+              </div>
             </div>
-            <div class="stat-value">{{ gameStats.wins }}</div>
-            <div class="stat-percentage">{{ winPercentage }}%</div>
-          </div>
-  
-          <div class="stat-card defeats">
-            <div class="stat-header">
-              <span class="stat-icon">💥</span>
-              <span class="stat-label">DERROTAS</span>
+            <div class="game-status" :class="getStatusClass(game.status)">
+              {{ game.status }}
             </div>
-            <div class="stat-value">{{ gameStats.losses }}</div>
-            <div class="stat-percentage">{{ lossPercentage }}%</div>
           </div>
-  
-          <div class="stat-card total">
-            <div class="stat-header">
-              <span class="stat-icon">🎯</span>
-              <span class="stat-label">TOTAL BATALLAS</span>
+
+          <div class="game-info">
+            <div class="info-row">
+              <div class="info-item">
+                <span class="info-label">COMMANDER:</span>
+                <span class="info-value commander-name">{{ game.player1 }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">PLAYERS:</span>
+                <span class="info-value" v-if="game.player2 == null">1/2</span>
+                <span class="info-value" v-else>2/2</span>
+              </div>
             </div>
-            <div class="stat-value">{{ totalGames }}</div>
-            <div class="stat-percentage">100%</div>
-          </div>
-        </div>
-  
-        <!-- Games History -->
-        <div class="games-history">
-          <div class="section-header">
-            <h2>HISTORIAL DE BATALLAS</h2>
-          </div>
-          
-          <div class="games-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>JUGADOR 1</th>
-                  <th>JUGADOR 2</th>
-                  <th>ESTADO</th>
-                  <th>GANADOR</th>
-                  <th>FECHA</th>
-                  <th>ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="game in games" :key="game.id">
-                  <td>{{ game.id }}</td>
-                  <td>{{ game.player1_name }}</td>
-                  <td>{{ game.player2_name || 'Esperando...' }}</td>
-                  <td>
-                    <span :class="['status-badge', game.status]">
-                      {{ getStatusText(game.status) }}
-                    </span>
-                  </td>
-                  <td>{{ game.winner_name || '-' }}</td>
-                  <td>{{ formatDate(game.created_at) }}</td>
-                  <td>
-                    <button 
-                      v-if="game.status === 'finished'"
-                      @click="showGameBoards(game.id)"
-                      class="action-btn"
-                    >
-                      Ver Tableros
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-  
-        <!-- Game Boards Modal -->
-        <div v-if="showModal" class="modal">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3>Tableros de la Partida #{{ selectedGameId }}</h3>
-              <button @click="closeModal" class="close-btn">&times;</button>
+            
+            <div class="info-row">
+              <div class="info-item">
+                <span class="info-label">MAP SIZE:</span>
+                <span class="info-value">{{ 8 }}x{{ 8 }}</span>
+              </div>
             </div>
-            <div class="modal-body">
-              <div class="boards-container">
-                <div class="board-section">
-                  <h4>Tablero Jugador 1</h4>
-                  <div class="board-grid">
-                    <div v-for="(row, i) in player1Board" :key="i" class="board-row">
-                      <div 
-                        v-for="(cell, j) in row" 
-                        :key="j"
-                        :class="['board-cell', getCellClass(cell)]"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="board-section">
-                  <h4>Tablero Jugador 2</h4>
-                  <div class="board-grid">
-                    <div v-for="(row, i) in player2Board" :key="i" class="board-row">
-                      <div 
-                        v-for="(cell, j) in row" 
-                        :key="j"
-                        :class="['board-cell', getCellClass(cell)]"
-                      ></div>
-                    </div>
-                  </div>
-                </div>
+            
+            <div class="info-row">
+              <div class="info-item">
+                <span class="info-label">CREATED:</span>
+                <span class="info-value">{{ formatTime(game.createdAt) }}</span>
               </div>
             </div>
           </div>
+
+          <div class="game-footer">
+            <div class="join-button" :class="{ disabled: game.player2 != null }">
+              <span v-if="game.player2 != null">BATTLEFIELD FULL</span>
+              <span v-else-if="game.isPrivate">ENTER ACCESS CODE</span>
+              <span v-else>JOIN BATTLE</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      <!-- Empty State -->
+      <div v-else class="empty-state">
+        <div class="empty-icon">🌌</div>
+        <h3>{{token}}</h3>
+        <p>{{ searchFilter ? 'Try adjusting your search filter' : 'Create a new battle to start commanding!' }}</p>
+      </div>
     </div>
-  </template>
-  <!-- Main Content -->
-  <script>
-  import { Link } from '@inertiajs/vue3';
-  import axios from 'axios';
+
+    <!-- Loading Overlay -->
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">SCANNING FOR BATTLES...</div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
+
+const playerName = ref('ALPHA_7')
+const isLoading = ref(false)
+const searchFilter = ref('')
+const token = localStorage.getItem('token') ?? 'No jalo pa'
+
+const games = ref([])
+
+const filteredGames = computed(() => {
+  if (!searchFilter.value) return games.value
   
-  export default {
-    name: 'BattleshipDashboard',
-    components: {
-      Link
-    },
-    data() {
-      return {
-        currentTime: '',
-        gameStats: {
-          wins: 0,
-          losses: 0
-        },
-        games: [],
-        showModal: false,
-        selectedGameId: null,
-        player1Board: [],
-        player2Board: [],
-        timeInterval: null
+  return games.value.filter(game => 
+    game.name.toLowerCase().includes(searchFilter.value.toLowerCase()) ||
+    game.player1.toLowerCase().includes(searchFilter.value.toLowerCase())
+  )
+})
+
+const refreshGames = async () => {
+  isLoading.value = true
+  try {
+    const response = await axios.get('/api/games', {
+      headers: {
+        Authorization: `Bearer ${token}`
       }
-    },
-    computed: {
-      totalGames() {
-        return this.gameStats.wins + this.gameStats.losses;
-      },
-      winPercentage() {
-        if (this.totalGames === 0) return 0;
-        return Math.round((this.gameStats.wins / this.totalGames) * 100);
-      },
-      lossPercentage() {
-        if (this.totalGames === 0) return 0;
-        return Math.round((this.gameStats.losses / this.totalGames) * 100);
-      }
-    },
-    methods: {
-      updateTime() {
-        const now = new Date();
-        this.currentTime = now.toLocaleTimeString();
-      },
-      formatDate(date) {
-        return new Date(date).toLocaleString();
-      },
-      getStatusText(status) {
-        const statusMap = {
-          'waiting': 'ESPERANDO',
-          'playing': 'EN JUEGO',
-          'finished': 'FINALIZADO'
-        };
-        return statusMap[status] || status;
-      },
-      getCellClass(cell) {
-        switch(cell) {
-          case 1: return 'ship';
-          case 2: return 'hit';
-          case 3: return 'miss';
-          default: return 'empty';
-        }
-      },
-      async fetchGames() {
-        try {
-          const response = await axios.get('/api/games');
-          this.games = response.data;
-          this.calculateStats();
-        } catch (error) {
-          console.error('Error fetching games:', error);
-        }
-      },
-      calculateStats() {
-        const userId = this.$page.props.auth.user.id;
-        this.gameStats.wins = this.games.filter(game => 
-          game.status === 'finished' && game.winner_id === userId
-        ).length;
-        this.gameStats.losses = this.games.filter(game => 
-          game.status === 'finished' && game.winner_id !== userId && game.winner_id !== null
-        ).length;
-      },
-      async showGameBoards(gameId) {
-        try {
-          const response = await axios.get(`/api/games/${gameId}`);
-          const game = response.data;
-          
-          // Obtener los tableros de ambos jugadores
-          const board1Response = await axios.get(`/api/games/${gameId}/board/1`);
-          const board2Response = await axios.get(`/api/games/${gameId}/board/2`);
-          
-          this.player1Board = JSON.parse(board1Response.data.grid);
-          this.player2Board = JSON.parse(board2Response.data.grid);
-          this.selectedGameId = gameId;
-          this.showModal = true;
-        } catch (error) {
-          console.error('Error fetching game boards:', error);
-        }
-      },
-      closeModal() {
-        this.showModal = false;
-        this.selectedGameId = null;
-        this.player1Board = [];
-        this.player2Board = [];
-      },
-      logout() {
-        this.$inertia.post(route('logout'));
-      }
-    },
-    mounted() {
-      this.updateTime();
-      this.timeInterval = setInterval(this.updateTime, 1000);
-      this.fetchGames();
-    },
-    beforeUnmount() {
-      if (this.timeInterval) {
-        clearInterval(this.timeInterval);
-      }
-    }
+    })
+    games.value = response.data.games.map(game => ({
+      id: game.id,
+      name: game.name,
+      player1: game.player1,
+      player2: game.player2,
+      status: game.status,
+      createdAt: new Date(game.created_at),
+    }))
+  } catch (e) {
+    games.value = []
   }
-  </script>
+  isLoading.value = false
+}
+
+const createGame = () => {
+  console.log('Creating new game...')
+  // Aquí iría la lógica para crear una nueva partida
+}
+
+const joinGame = (game) => {
+  if (game.players >= game.maxPlayers) return
   
-  <style scoped>
-  .dashboard-container {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
-    color: #00ff88;
-    font-family: 'Courier New', monospace;
-    padding: 20px;
+  console.log(`Joining game: ${game.name}`)
+  // Aquí iría la lógica para unirse a la partida
+}
+
+const getStatusClass = (status) => {
+  switch(status.toLowerCase()) {
+    case 'waiting': return 'status-waiting'
+    case 'in_progress': return 'status-active'
+    case 'finished': return 'status-finished'
+    default: return ''
   }
+}
+
+const getPingClass = (ping) => {
+  if (ping < 50) return 'ping-good'
+  if (ping < 100) return 'ping-medium'
+  return 'ping-bad'
+}
+
+const formatTime = (date) => {
+  const now = new Date()
+  const diff = Math.floor((now - date) / 1000)
   
-  .dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-    padding: 20px;
-    background: rgba(0, 255, 65, 0.1);
-    border: 2px solid #00ff41;
-    border-radius: 10px;
-  }
-  
-  .title {
-    font-size: 2rem;
-    margin: 0;
-    text-shadow: 0 0 10px #00ff41;
-  }
-  
-  .header-controls {
-    display: flex;
+  if (diff < 60) return `${diff}s ago`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  return `${Math.floor(diff / 3600)}h ago`
+}
+
+onMounted(() => {
+  // Simular carga inicial
+  refreshGames()
+})
+</script>
+
+<style scoped>
+.lobby-container {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0f0f0f 100%);
+  min-height: 100vh;
+  padding: 20px;
+  font-family: 'Courier New', monospace;
+  color: #00ff41;
+  position: relative;
+}
+
+.lobby-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(0, 255, 65, 0.1);
+  border: 2px solid #00ff41;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.lobby-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0;
+  text-shadow: 0 0 20px #00ff41;
+  letter-spacing: 3px;
+}
+
+.player-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #00ff41;
+  box-shadow: 0 0 15px #00ff41;
+  animation: pulse 2s infinite;
+}
+
+.player-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-shadow: 0 0 10px #00ff41;
+}
+
+.controls-panel {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  background: linear-gradient(45deg, #00ff41, #00cc33);
+  border: none;
+  padding: 12px 25px;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #000;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 255, 65, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 255, 65, 0.6);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  font-size: 1.2rem;
+}
+
+.search-filter {
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 15px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #333;
+  border-radius: 5px;
+  color: #00ff41;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #00ff41;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+}
+
+.search-input::placeholder {
+  color: #666;
+}
+
+.games-section {
+  margin-bottom: 30px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #00ff41;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  text-shadow: 0 0 10px #00ff41;
+}
+
+.games-counter {
+  color: #888;
+  font-size: 1rem;
+}
+
+.games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.game-card {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-card:hover {
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.05);
+  box-shadow: 0 5px 20px rgba(0, 255, 65, 0.2);
+  transform: translateY(-2px);
+}
+
+.game-card.private-game {
+  border-left: 4px solid #ff9500;
+}
+
+.game-card.full-game {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.game-card.full-game:hover {
+  transform: none;
+  border-color: #333;
+  background: rgba(0, 0, 0, 0.8);
+  box-shadow: none;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.game-title {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.game-name {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #00ff41;
+  text-shadow: 0 0 5px #00ff41;
+}
+
+.game-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.badge.full {
+  background: #ff4444;
+  color: #fff;
+}
+
+.game-status {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.status-waiting {
+  background: rgba(0, 255, 65, 0.2);
+  color: #00ff41;
+  border: 1px solid #00ff41;
+}
+
+.status-active {
+  background: rgba(255, 149, 0, 0.2);
+  color: #ff9500;
+  border: 1px solid #ff9500;
+}
+
+.status-finished {
+  background: rgba(68, 68, 255, 0.2);
+  color: #4444ff;
+  border: 1px solid #4444ff;
+}
+
+.game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.info-label {
+  font-size: 0.8rem;
+  color: #888;
+  font-weight: bold;
+}
+
+.info-value {
+  font-size: 1rem;
+  color: #00ff41;
+}
+
+.commander-name {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.ping.ping-good {
+  color: #00ff41;
+}
+
+.ping.ping-medium {
+  color: #ff9500;
+}
+
+.ping.ping-bad {
+  color: #ff4444;
+}
+
+.game-footer {
+  border-top: 1px solid #333;
+  padding-top: 15px;
+}
+
+.join-button {
+  background: linear-gradient(45deg, #00ff41, #00cc33);
+  color: #000;
+  padding: 10px 20px;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.join-button.disabled {
+  background: #666;
+  color: #333;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+  color: #888;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid #333;
+  border-top: 3px solid #00ff41;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+.loading-text {
+  font-size: 1.2rem;
+  color: #00ff41;
+  text-shadow: 0 0 10px #00ff41;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .lobby-header {
     flex-direction: column;
     gap: 15px;
-    align-items: flex-end;
-  }
-  
-  .status-bar {
-    display: flex;
-    gap: 20px;
-  }
-  
-  .status-item {
-    font-size: 1.1rem;
-  }
-  
-  .user-controls {
-    display: flex;
-    gap: 10px;
-  }
-  
-  .control-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    text-decoration: none;
-  }
-  
-  .profile-btn {
-    background: #00ff41;
-    color: #000;
-  }
-  
-  .logout-btn {
-    background: #ff4444;
-    color: #fff;
-  }
-  
-  .control-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 255, 65, 0.4);
-  }
-  
-  .btn-icon {
-    font-size: 1.2rem;
-  }
-  
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-  }
-  
-  .stat-card {
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid #00ff41;
-    border-radius: 10px;
-    padding: 20px;
     text-align: center;
   }
   
-  .stat-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .lobby-title {
+    font-size: 2rem;
+  }
+  
+  .controls-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .info-row {
+    flex-direction: column;
     gap: 10px;
-    margin-bottom: 15px;
   }
   
-  .stat-icon {
-    font-size: 1.5rem;
+  .game-header {
+    flex-direction: column;
+    gap: 10px;
   }
-  
-  .stat-value {
-    font-size: 2.5rem;
-    font-weight: bold;
-    margin: 10px 0;
-  }
-  
-  .stat-percentage {
-    font-size: 1.2rem;
-    color: #00ff41;
-  }
-  
-  .games-history {
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid #00ff41;
-    border-radius: 10px;
-    padding: 20px;
-  }
-  
-  .section-header {
-    margin-bottom: 20px;
-  }
-  
-  .section-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: #00ff41;
-  }
-  
-  .games-table {
-    width: 100%;
-    overflow-x: auto;
-  }
-  
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-  }
-  
-  th, td {
-    padding: 12px;
-    border-bottom: 1px solid #333;
-  }
-  
-  th {
-    background: rgba(0, 255, 65, 0.1);
-    font-weight: bold;
-  }
-  
-  .status-badge {
-    padding: 5px 10px;
-    border-radius: 15px;
-    font-size: 0.9rem;
-  }
-  
-  .status-badge.waiting {
-    background: #ffd700;
-    color: #000;
-  }
-  
-  .status-badge.playing {
-    background: #00ff41;
-    color: #000;
-  }
-  
-  .status-badge.finished {
-    background: #ff4444;
-    color: #fff;
-  }
-  
-  .action-btn {
-    background: #00ff41;
-    color: #000;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-    font-weight: bold;
-  }
-  
-  .action-btn:hover {
-    background: #00cc33;
-  }
-  
-  /* Modal Styles */
-  .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-  
-  .modal-content {
-    background: #1a1a2e;
-    border: 2px solid #00ff41;
-    border-radius: 10px;
-    width: 90%;
-    max-width: 1200px;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-  
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    border-bottom: 1px solid #00ff41;
-  }
-  
-  .modal-header h3 {
-    margin: 0;
-    color: #00ff41;
-  }
-  
-  .close-btn {
-    background: none;
-    border: none;
-    color: #00ff41;
-    font-size: 1.5rem;
-    cursor: pointer;
-  }
-  
-  .modal-body {
-    padding: 20px;
-  }
-  
-  .boards-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-  }
-  
-  .board-section {
-    text-align: center;
-  }
-  
-  .board-section h4 {
-    margin-bottom: 15px;
-    color: #00ff41;
-  }
-  
-  .board-grid {
-    display: inline-grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 2px;
-    background: #333;
-    padding: 2px;
-    border: 1px solid #00ff41;
-  }
-  
-  .board-row {
-    display: contents;
-  }
-  
-  .board-cell {
-    width: 30px;
-    height: 30px;
-    background: #1a1a2e;
-    border: 1px solid #333;
-  }
-  
-  .board-cell.ship {
-    background: #00ff41;
-  }
-  
-  .board-cell.hit {
-    background: #ff4444;
-  }
-  
-  .board-cell.miss {
-    background: #4444ff;
-  }
-  
-  @media (max-width: 768px) {
-    .dashboard-header {
-      flex-direction: column;
-      gap: 15px;
-      text-align: center;
-    }
-    
-    .stats-grid {
-      grid-template-columns: 1fr;
-    }
-    
-    .board-cell {
-      width: 25px;
-      height: 25px;
-    }
-    
-    .header-controls {
-      align-items: center;
-    }
-    
-    .user-controls {
-      flex-direction: column;
-      width: 100%;
-    }
-    
-    .control-btn {
-      width: 100%;
-      justify-content: center;
-    }
-  }
-  </style>
+}
+</style>

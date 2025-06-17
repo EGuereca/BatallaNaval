@@ -101,7 +101,7 @@
       <!-- Empty State -->
       <div v-else class="empty-state">
         <div class="empty-icon">🌌</div>
-        <h3>NO ACTIVE BATTLES FOUND</h3>
+        <h3>{{token}}</h3>
         <p>{{ searchFilter ? 'Try adjusting your search filter' : 'Create a new battle to start commanding!' }}</p>
       </div>
     </div>
@@ -121,6 +121,7 @@ import axios from 'axios'
 const playerName = ref('ALPHA_7')
 const isLoading = ref(false)
 const searchFilter = ref('')
+const token = localStorage.getItem('token') ?? 'No jalo pa'
 
 const games = ref([])
 
@@ -136,7 +137,11 @@ const filteredGames = computed(() => {
 const refreshGames = async () => {
   isLoading.value = true
   try {
-    const response = await axios.get('/api/games', { withCredentials:true})
+    const response = await axios.get('/api/games', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
     games.value = response.data.games.map(game => ({
       id: game.id,
       name: game.name,
