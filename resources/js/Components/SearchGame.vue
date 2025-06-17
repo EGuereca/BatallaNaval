@@ -136,7 +136,7 @@ const filteredGames = computed(() => {
 const refreshGames = async () => {
   isLoading.value = true
   try {
-    const response = await axios.get('/api/games')
+    const response = await axios.get('/api/games', { withCredentials:true})
     games.value = response.data.games.map(game => ({
       id: game.id,
       name: game.name,
