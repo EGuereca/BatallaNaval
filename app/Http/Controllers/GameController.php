@@ -15,7 +15,7 @@ class GameController extends Controller
     public function createGame(Request $request){
         $game = Game::create([
             'player1_id' => Auth::id(),
-            'player2_id'=>null,
+            'player2_id' => Auth::id(), // Initially set to the creator, will be updated when a second player joins
             'status' => 'waiting',
             'current_turn_id' => Auth::id(),
         ]);
@@ -23,6 +23,19 @@ class GameController extends Controller
         $boats = 15;
         $grid = array_fill(0, 8, array_fill(0, 8, 0)); // Initialize a 8x8 grid with null values
 
+        $filledGrid = $this->fillBoard($grid, $boats); // Fill the board with boats
+
+        // Initialize the board with an empty grid
+        Board::create([
+            'game_id' => $game->id,
+            'player_id' => Auth::id(),
+            'grid' => json_encode($filledGrid), // Store the grid as a JSON string
+        ]);
+
+        return response()->json(['game_id' => $game->id, 'grid' => $filledGrid], 201);
+
+    }
+    private function fillBoard(&$grid, $boats) {
         while ($boats > 0) {
             $x = rand(0, 7);
             $y = rand(0, 7);
@@ -33,15 +46,7 @@ class GameController extends Controller
                 $boats--;
             }
         }
-
-        // Initialize the board with an empty grid
-        Board::create([
-            'game_id' => $game->id,
-            'grid' => json_encode($grid), // Store the grid as a JSON string
-        ]);
-
-        return response()->json(['game_id' => $game->id, 'grid' => $grid], 201);
-
+        return $grid;
     }
     public function joinGame(Request $request, $gameId){
         $game = Game::findOrFail($gameId);
@@ -53,7 +58,17 @@ class GameController extends Controller
         $game->status = 'playing';
         $game->save();
 
-        return response()->json(['message' => 'Joined game successfully', 'game_id' => $game->id], 200);
+        // Create a new board for the second player
+        $boats = 15;
+        $grid = array_fill(0, 8, array_fill(0, 8, 0)); // Initialize a 8x8 grid with null values
+        $filledGrid = $this->fillBoard($grid, $boats); // Fill the board with boats
+        Board::create([
+            'game_id' => $game->id,
+            'player_id' => Auth::id(),
+            'grid' => json_encode($filledGrid), // Store the grid as a JSON string
+        ]);
+
+        return response()->json(['message' => 'Joined game successfully', 'game_id' => $game->id, 'grid' => $filledGrid], 200);
     }
     public function listGames(Request $request){
         $games = Game::where('status', 'waiting')->get();
@@ -76,7 +91,10 @@ class GameController extends Controller
             'y' => 'required|integer|min:0|max:7',
         ]);
 
-        $board = $game->board;
+        // Get the board for the current player
+        $board = Board::where('game_id', $gameId)
+            ->where('player_id', Auth::id())
+            ->firstOrFail();
         $grid = json_decode($board->grid, true);
 
         if ($grid[$request->x][$request->y] == 1) {
@@ -99,21 +117,23 @@ class GameController extends Controller
             'player_id' => Auth::id(),
             'x' => $request->x,
             'y' => $request->y,
-            'status' => $status,
+            'hit' => ($status === 'hit') ? true : false,
         ]);
 
         // Switch turn
         $game->current_turn_id = ($game->current_turn_id == $game->player1_id) ? $game->player2_id : $game->player1_id;
         $game->save();
 
-        $this->checkStatus($gameId);
+        $this->checkStatus($gameId, $game->current_turn_id); // Check if the game is finished
         // Check if the game is finished
         
         return response()->json(['message' => 'Move made successfully', 'status' => $status, 'grid' => $grid], 200);
     }
-    private function checkStatus($gameId) {
+    private function checkStatus($gameId, $currentTurnId) {
         $game = Game::findOrFail($gameId);
-        $board = $game->board;
+        $board = Board::where('game_id', $gameId)
+            ->where('player_id', $currentTurnId)
+            ->firstOrFail();
         $grid = json_decode($board->grid, true);
 
         // Check if all boats are hit

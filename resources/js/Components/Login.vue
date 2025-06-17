@@ -41,25 +41,25 @@
               <div class="input-icon">📧</div>
               <input
                 id="email"
-                v-model="credentials.email"
+                v-model="form.email"
                 type="email"
                 class="form-input"
                 :class="{ 
-                  'error': errors.email,
-                  'success': credentials.email && !errors.email && credentials.email.includes('@')
+                  'error': form.errors.email,
+                  'success': form.email && !form.errors.email && form.email.includes('@')
                 }"
                 placeholder="commander@battleship.mil"
                 required
                 @blur="validateEmail"
                 @input="clearError('email')"
               />
-              <div class="input-status" v-if="credentials.email && !errors.email && credentials.email.includes('@')">
+              <div class="input-status" v-if="form.email && !form.errors.email && form.email.includes('@')">
                 ✓
               </div>
             </div>
-            <div v-if="errors.email" class="error-message">
+            <div v-if="form.errors.email" class="error-message">
               <span class="error-icon">⚠</span>
-              {{ errors.email }}
+              {{ form.errors.email }}
             </div>
           </div>
 
@@ -73,12 +73,12 @@
               <div class="input-icon">🔐</div>
               <input
                 id="password"
-                v-model="credentials.password"
+                v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 class="form-input"
                 :class="{ 
-                  'error': errors.password,
-                  'success': credentials.password && credentials.password.length >= 6
+                  'error': form.errors.password,
+                  'success': form.password && form.password.length >= 6
                 }"
                 placeholder="Enter your access code..."
                 required
@@ -93,9 +93,9 @@
                 {{ showPassword ? '👁️' : '🔒' }}
               </button>
             </div>
-            <div v-if="errors.password" class="error-message">
+            <div v-if="form.errors.password" class="error-message">
               <span class="error-icon">⚠</span>
-              {{ errors.password }}
+              {{ form.errors.password }}
             </div>
           </div>
 
@@ -103,7 +103,7 @@
           <div class="checkbox-group">
             <label class="checkbox-label">
               <input
-                v-model="rememberMe"
+                v-model="form.remember"
                 type="checkbox"
                 class="checkbox-input"
               />
@@ -171,61 +171,55 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { Head, Link, useForm } from '@inertiajs/vue3'
 
-// Reactive data
-const credentials = ref({
+// Usa useForm de Inertia
+const form = useForm({
   email: '',
-  password: ''
+  password: '',
+  remember: false,
 })
 
-const errors = ref({
-  email: '',
-  password: ''
-})
-
-const rememberMe = ref(false)
 const showPassword = ref(false)
 const isLoading = ref(false)
 const loginError = ref('')
 const systemOnline = ref(true)
 
-// Computed properties
+// Computed para validar el formulario
 const isFormValid = computed(() => {
-  return credentials.value.email && 
-         credentials.value.password && 
-         !errors.value.email && 
-         !errors.value.password &&
-         credentials.value.email.includes('@') &&
-         credentials.value.password.length >= 6
+  return form.email &&
+         form.password &&
+         !form.errors.email &&
+         !form.errors.password &&
+         form.email.includes('@') &&
+         form.password.length >= 6
 })
 
-// Methods
+// Métodos de validación visual (opcional, para UX)
 const validateEmail = () => {
-  const email = credentials.value.email
-  if (!email) {
-    errors.value.email = 'Email is required'
-  } else if (!email.includes('@')) {
-    errors.value.email = 'Invalid email format'
-  } else if (!email.includes('.')) {
-    errors.value.email = 'Invalid domain format'
+  if (!form.email) {
+    form.errors.email = 'Email is required'
+  } else if (!form.email.includes('@')) {
+    form.errors.email = 'Invalid email format'
+  } else if (!form.email.includes('.')) {
+    form.errors.email = 'Invalid domain format'
   } else {
-    errors.value.email = ''
+    form.errors.email = ''
   }
 }
 
 const validatePassword = () => {
-  const password = credentials.value.password
-  if (!password) {
-    errors.value.password = 'Access code is required'
-  } else if (password.length < 6) {
-    errors.value.password = 'Access code must be at least 6 characters'
+  if (!form.password) {
+    form.errors.password = 'Access code is required'
+  } else if (form.password.length < 6) {
+    form.errors.password = 'Access code must be at least 6 characters'
   } else {
-    errors.value.password = ''
+    form.errors.password = ''
   }
 }
 
 const clearError = (field) => {
-  errors.value[field] = ''
+  form.errors[field] = ''
   loginError.value = ''
 }
 
@@ -233,63 +227,48 @@ const togglePassword = () => {
   showPassword.value = !showPassword.value
 }
 
-const handleLogin = async () => {
+// Nuevo handleLogin usando Inertia
+const handleLogin = () => {
   validateEmail()
   validatePassword()
-  
   if (!isFormValid.value) return
 
   isLoading.value = true
   loginError.value = ''
 
-  try {
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    if (credentials.value.email === 'commander@battleship.mil' && 
-        credentials.value.password === 'demo123') {
-      
-      console.log('Login successful!', {
-        email: credentials.value.email,
-        rememberMe: rememberMe.value
-      })
-
-      const submit = () => {}
-      
-      // Here you would redirect to the main app
-      // router.push('/lobby') or emit an event
-
-      
-    } else {
-      loginError.value = 'Invalid Commander ID or Access Code. Please verify your credentials and try again.'
+  form.post(route('login'), {
+    onFinish: () => {
+      isLoading.value = false
+      form.reset('password')
+    },
+    onError: (errors) => {
+      // Muestra error general si existe
+      if (errors.email || errors.password) {
+        loginError.value = 'Invalid Commander ID or Access Code. Please verify your credentials and try again.'
+      }
     }
-    
-  } catch (error) {
-    loginError.value = 'System error occurred. Please try again later.'
-  } finally {
-    isLoading.value = false
-  }
+  })
 }
 
 const forgotPassword = () => {
-  console.log('Forgot password clicked')
-  // Handle forgot password logic
+  // Redirige a la ruta de recuperación de contraseña de Inertia
+  window.location.href = route('password.request')
 }
 
 const createAccount = () => {
-  console.log('Create account clicked')
-  // Handle account creation logic
+  // Aquí podrías redirigir a un registro o mostrar un modal
+  alert('Solicita acceso al administrador del sistema.')
 }
 
 const fillDemoCredentials = () => {
-  credentials.value.email = 'commander@battleship.mil'
-  credentials.value.password = 'demo123'
-  errors.value.email = ''
-  errors.value.password = ''
+  form.email = 'commander@battleship.mil'
+  form.password = 'demo123'
+  form.errors.email = ''
+  form.errors.password = ''
 }
 
 // Lifecycle
 onMounted(() => {
-  // Simulate system startup
   setTimeout(() => {
     systemOnline.value = true
   }, 1000)

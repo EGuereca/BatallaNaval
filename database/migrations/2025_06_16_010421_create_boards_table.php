@@ -16,7 +16,8 @@ return new class extends Migration
         Schema::create('boards', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-            $table->foreignId('game_id')->constrained()->onDelete('cascade');
+            $table->foreignId('game_id')->constrained()->references('id')->on('games')->onDelete('cascade');
+            $table->foreignId('player_id')->constrained()->references('id')->on('users')->onDelete('cascade'); // Assuming you have a users table
             $table->text('grid'); //JSON, representing the board state
         });
     }
