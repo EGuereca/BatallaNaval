@@ -1,17 +1,15 @@
 <script setup>
-import GuestLayout from '@/Layouts/GuestLayout.vue';
+import { Head, useForm } from '@inertiajs/vue3';
 import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import CyberpunkBackground from '@/Components/CyberpunkBackground.vue';
+import SystemHeader from '@/Components/SystemHeader.vue';
+import CyberpunkButton from '@/Components/CyberpunkButton.vue';
 
 const form = useForm({
     name: '',
     email: '',
     password: '',
     password_confirmation: '',
-    terms: false,
 });
 
 const submit = () => {
@@ -22,27 +20,11 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="register-container">
-        <!-- Background Effects -->
-        <div class="bg-effects">
-            <div class="grid-overlay"></div>
-            <div class="scanner-line"></div>
-        </div>
+    <Head title="Register" />
 
+    <CyberpunkBackground>
         <div class="register-panel">
-            <div class="register-header">
-                <div class="system-logo">
-                    <div class="logo-icon">⚡</div>
-                    <div class="logo-text">
-                        <h1>BATTLESHIP</h1>
-                        <span class="subtitle">COMMAND SYSTEM</span>
-                    </div>
-                </div>
-                <div class="system-status">
-                    <div class="status-indicator active"></div>
-                    <span class="status-text">SYSTEM ONLINE</span>
-                </div>
-            </div>
+            <SystemHeader />
 
             <form @submit.prevent="submit" class="register-form">
                 <div class="form-section">
@@ -103,78 +85,27 @@ const submit = () => {
                 </div>
 
                 <div class="form-actions">
-                    <Link
-                        :href="route('login')"
-                        class="action-link"
+                    <CyberpunkButton
+                        :to="route('login')"
+                        icon="🔑"
                     >
                         ¿YA TIENES UNA CUENTA?
-                    </Link>
+                    </CyberpunkButton>
 
-                    <button 
-                        class="submit-btn"
-                        :class="{ 'opacity-25': form.processing }"
+                    <CyberpunkButton
+                        type="submit"
+                        icon="⚡"
                         :disabled="form.processing"
                     >
                         REGISTRAR COMANDANTE
-                    </button>
+                    </CyberpunkButton>
                 </div>
             </form>
         </div>
-    </div>
+    </CyberpunkBackground>
 </template>
 
 <style scoped>
-.register-container {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
-    color: #00ff41;
-    font-family: 'Courier New', monospace;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-    position: relative;
-    overflow: hidden;
-}
-
-.bg-effects {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 0;
-}
-
-.grid-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: 
-        linear-gradient(rgba(0, 255, 65, 0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 255, 65, 0.1) 1px, transparent 1px);
-    background-size: 20px 20px;
-}
-
-.scanner-line {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background: #00ff41;
-    box-shadow: 0 0 20px #00ff41;
-    animation: scan 3s linear infinite;
-}
-
-@keyframes scan {
-    0% { top: 0; }
-    100% { top: 100%; }
-}
-
 .register-panel {
     background: rgba(0, 0, 0, 0.8);
     border: 2px solid #00ff41;
@@ -185,67 +116,7 @@ const submit = () => {
     position: relative;
     z-index: 1;
     backdrop-filter: blur(10px);
-}
-
-.register-header {
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-.system-logo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.logo-icon {
-    font-size: 2.5rem;
-    animation: pulse 2s infinite;
-}
-
-.logo-text {
-    text-align: left;
-}
-
-.logo-text h1 {
-    font-size: 2rem;
-    margin: 0;
-    text-shadow: 0 0 10px #00ff41;
-    letter-spacing: 2px;
-}
-
-.subtitle {
-    font-size: 1rem;
-    opacity: 0.8;
-}
-
-.system-status {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-.status-indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #00ff41;
-    box-shadow: 0 0 15px #00ff41;
-    animation: pulse 2s infinite;
-}
-
-.status-text {
-    font-size: 0.9rem;
-    opacity: 0.8;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+    margin: 2rem auto;
 }
 
 .register-form {
@@ -304,52 +175,10 @@ const submit = () => {
     align-items: center;
 }
 
-.action-link {
-    color: #00ff41;
-    text-decoration: none;
-    font-size: 0.9rem;
-    transition: all 0.3s ease;
-}
-
-.action-link:hover {
-    text-shadow: 0 0 10px #00ff41;
-}
-
-.submit-btn {
-    width: 100%;
-    padding: 12px;
-    background: #00ff41;
-    color: #000;
-    border: none;
-    border-radius: 5px;
-    font-family: 'Courier New', monospace;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.submit-btn:hover:not(:disabled) {
-    background: #00cc33;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 255, 65, 0.4);
-}
-
-.submit-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
 @media (max-width: 640px) {
     .register-panel {
         padding: 20px;
-    }
-
-    .logo-text h1 {
-        font-size: 1.5rem;
-    }
-
-    .subtitle {
-        font-size: 0.8rem;
+        margin: 1rem;
     }
 }
 </style>
